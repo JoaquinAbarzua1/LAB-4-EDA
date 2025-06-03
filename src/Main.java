@@ -1,7 +1,18 @@
 import java.security.PrivateKey;
 import java.util.*;
-
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.LinkedList;
+import java.util.Random;
+import java.util.Stack;
+import java.util.Comparator;
+import java.time.Instant;
+import java.io.FileWriter;
+import java.io.IOException;
 //-----------------------Clase Paciente-----------------------
 class Paciente{
     private String nombre;
@@ -123,25 +134,136 @@ class Hospital{
 
 //-----------------------Clase GeneradorPacientes------------------------
 
-class GeneradorPacientes{
-    private static final String[] nombres = ("NOMBRES ")
-    private static final String[] apellidos = ("Apellidos")
-    private static final String[] areas = ("SAPU","infantil","urgencia_adulto")
+    class GeneradorPacientes{
+        private static final String[] nombres = { "María", "Pedro", "Ana", "Luis", "Sofía","Rodrigo","Benjamin"} ;             //Datos fijos 
+        private static final String[] apellidos = {"Vargas","Pérez","López","Soto","Torres","Muños"} ;
+        private static final String[] areas = {"SAPU","infantil","urgencia_adulto"} ;
+    
+    public static List<Paciente> generarPacientes(int N, long timestampInicio) {         // lista de pacientes 
+            List<Paciente> lista = new ArrayList<>();
+            Random rand = new Random();
+    
+            for (int i = 0; i < N; i++) {               //bucles para crear pacientes 
+                String nombre = nombres[rand.nextInt(nombres.length)];     //Nombre y apellidos al azar 
+                String apellido = apellidos[rand.nextInt(apellidos.length)];
+                String id = "ID" + (1000 + i);                           // ID de paciente 
+                int categoria = generarCategoria(rand);                      // categoria random
+                long tiempoLlegada = timestampInicio + i * 600;             // Simula llegada cada 10 mins 
+                String area = areas[rand.nextInt(areas.length)];                  //área al azar 
+    
+                Paciente p = new Paciente(nombre, apellido, id, categoria, tiempoLlegada, area);
+                lista.add(p);                                             //crea paciente y lo agrega a la lista
+            }
+            return lista;
+        }
+     private static int generarCategoria(Random rand) {         //genera categorias al azar 
+        int r = rand.nextInt(100) + 1;                           
+        if (r <= 10) return 1;       // C1
+        else if (r <= 25) return 2;  // C2
+        else if (r <= 43) return 3;  // C3
+        else if (r <= 70) return 4;  // C4
+        else return 5;               // C5
+    }
 
-    //para categoria, generdador num aleatorio entre 1 y 5
+    public static void guardarPacientesEnArchivo(List<Paciente> pacientes, String archivo) {                    //Recibe lista de paciente  y archivo 
+        try (FileWriter writer = new FileWriter(archivo)) {                                           //Abre el archivo usando try-with-resources, lo que garantiza que se cerrará correctamente al final.
+            for (Paciente p : pacientes) {
+                writer.write(p.getId() + "," + p.getNombre() + "," + p.getApellido() + "," + p.getCategoria()
+                    + "," + p.getTiempoLlegada() + "," + p.getArea() + "," + p.getEstado() + "\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();                               //Escribe cada paciente en una línea del archivo CSV.
 
+        }
+    }
+    
 
 }
 
 
 //-----------------------Clase SimuladorUrgencia------------------------
 
+class SimuladorUrgencia {                                   // crear clase 
+    private Hospital hospital;
+    private List<Paciente> pacientesSimulados;
+    private int pacientesAtendidos;
+    private Map<Integer, List<Long>> tiemposEsperaPorCategoria;
+    private List<Paciente> pacientesFueraDeTiempo;
 
-class SimuladorUrgencia{
+    public SimuladorUrgencia() {                            // constructor 
+        this.hospital = new Hospital(); 
+        this.pacientesAtendidos = 0;
+        this.tiemposEsperaPorCategoria = new HashMap<>();
+        this.pacientesFueraDeTiempo = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) tiemposEsperaPorCategoria.put(i, new ArrayList<>());
+    }
 
-    public void simular(int pacientesPorDia){}
+    public void simular(int pacientesPorDia) {                                         //simula pacientes por dia 
+        long timestampInicio = Instant.now().getEpochSecond();
+        pacientesSimulados = GeneradorPacientes.generarPacientes(pacientesPorDia, timestampInicio);
+        Queue<Paciente> colaLlegadas = new LinkedList<>(pacientesSimulados);
+
+        int minuto = 0;
+        int nuevosDesdeUltimaAtencion = 0;
+
+        while (minuto < 24 * 60) {
+            long tiempoActual = timestampInicio + minuto * 60;
+
+            if (minuto % 10 == 0 && !colaLlegadas.isEmpty()) {
+                Paciente nuevo = colaLlegadas.poll();
+                hospital.registrarPaciente(nuevo);
+                nuevosDesdeUltimaAtencion++;
+            }
+
+            if (minuto % 15 == 0 || nuevosDesdeUltimaAtencion >= 3) {
+                atenderPacientes(tiempoActual, nuevosDesdeUltimaAtencion >= 3 ? 2 : 1);
+                nuevosDesdeUltimaAtencion = 0;
+            }
+            minuto++;
+        }
+
+        System.out.println(" SIMULACIÓN COMPLETA ");
+        mostrarResultados();
+    }
+
+    private void atenderPacientes(long tiempoActual, int cantidad) {
+        for (int i = 0; i < cantidad; i++) {
+            Paciente p = hospital.atenderSiguiente();
+            if (p == null) return;
+
+            long espera = (tiempoActual - p.getTiempoLlegada()) / 60;
+            tiemposEsperaPorCategoria.get(p.getCategoria()).add(espera);
+            if (excedeTiempoMaximo(p.getCategoria(), espera)) pacientesFueraDeTiempo.add(p);
+            pacientesAtendidos++;
+        }
+    }
+
+    private boolean excedeTiempoMaximo(int categoria, long esperaMinutos) {
+        switch (categoria) {
+            case 1: return esperaMinutos > 0;
+            case 2: return esperaMinutos > 30;
+            case 3: return esperaMinutos > 90;
+            case 4: return esperaMinutos > 180;
+            case 5: return false;
+        }
+        return false;
+    }
+
+    private void mostrarResultados() {
+        System.out.println("Total pacientes atendidos: " + pacientesAtendidos);
+
+        for (int cat = 1; cat <= 5; cat++) {
+            List<Long> tiempos = tiemposEsperaPorCategoria.get(cat);
+            double promedio = tiempos.isEmpty() ? 0 : tiempos.stream().mapToLong(Long::longValue).average().orElse(0);
+            System.out.printf("Categoría C%d: atendidos=%d, espera promedio=%.2f min\n", cat, tiempos.size(), promedio);
+        }
+
+        System.out.println("Pacientes que excedieron el tiempo máximo: " + pacientesFueraDeTiempo.size());
+        for (Paciente p : pacientesFueraDeTiempo) {
+            System.out.println("- " + p.getId() + ", C" + p.getCategoria() + ", área: " + p.getArea());
+        }
+    }
 }
-
 
 //-----------------------Clase Main-------------------------
 
