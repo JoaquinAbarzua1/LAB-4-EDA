@@ -56,7 +56,7 @@ class Paciente{
     //----------Metodos Obligatorios---------
     public long tiempoEsperaActual(){}
 
-    public void registrarCambio(String descripcion){ historialCambios.push(descripcion); }
+    public void registrarCambio(String descripcion){ historialCambios.push(descripcion); }//creo que sirve más para cambios puntuales
 
     public String obtenerUltimoCambio(){ return historialCambios.peek(); }
 
@@ -79,7 +79,8 @@ class AreaAtencion {
 
     public void ingresarPaciente(Paciente P) {
         if (!saturada()){
-            pacientesHeap.add(P);}
+            pacientesHeap.add(P);} //supongo que habría que cambiar el estado del paciente a "en_atencion" o algo
+            // y registrarlo en el historialCambios
     }
 
     public boolean saturada() {
@@ -87,7 +88,8 @@ class AreaAtencion {
     }
 
     public Paciente atenderPaciente() {
-        return pacientesHeap.poll();
+        return pacientesHeap.poll(); //supongo que habría que cambiar el estaddo del paciente a "atendido"
+        //y registrarlo en el historialCambios
     }
 
     public List<Paciente> obtenerPacientePorHeapSort() {
@@ -123,7 +125,9 @@ class Hospital{
 
     //----------Metodos obligatorios----------
 
-    public void registrarPaciente(Paciente p) {
+    public void registrarPaciente(Paciente p) { //¿al registrar un paciente, debe quedar dentro de su historial?
+        //revisar, quizás el enunciado está mal escrito
+        //dice que hay que asignar su categoria y su area, pero se supone que ya venia con categoria y area.
         colaAtencion.add(p);
         pacientesTotales.put(p.getId(), p);
     }
@@ -133,8 +137,15 @@ class Hospital{
     }
 
     public Paciente atenderSiguiente(){
-        //¿el area corresponde al area que tiene el paciente? ¿o sea que debo conseguir su area, usarla como llave para
-        // conseguir el valor (objeto) AreaAtencion, para luego agregarlo a su fila pacientesHeap?
+        if (areasAtencion.get(colaAtencion.peek().getArea()).saturada()){ //reviso si la cola de pacientes de esa area está saturada o no
+            //No cacho como funciona PQ, ¿si saco y devuelvo al mismo paciente, se agrega en orden?
+            //Si es que se agrega en orden asumo que estará al frente de la colaAtencion otra vez
+            //podría hacer otra cola para los pacientes que no puedan ser atendidos porque la cola del área está llena
+            //Entonces habría que hacer otro "if", en el que reviso primero la cola de los que no pudieron ser atendidos debido
+            //a que la cola de su area estaba llena, luego reviso colaAtencion
+            //O supongo que igual depende, habría que ver qué paciente tiene mayor prioridad, el que está en la colaAtencion,
+            //o el que está en la cola de los atrasados
+        }
     }
 
     public List<Paciente> obtenerPacientesPorCategoria(int categoria){
@@ -151,7 +162,9 @@ class Hospital{
         return ordenados;
     }
 
-    public AreaAtencion obtenerArea(String nombre){}
+    public AreaAtencion obtenerArea(String nombre){
+        return areasAtencion.get(nombre);
+    }
 
 
 }
@@ -182,7 +195,9 @@ class Hospital{
                 String id = "ID" + (1000 + i);                           // ID de paciente
                 int categoria = generarCategoria(rand);                      // categoria random
                 long tiempoLlegada = timestampInicio + i * 600;             // Simula llegada cada 10 mins
+                String estado = "en_espera";
                 String area = areas[rand.nextInt(areas.length)];                  //área al azar
+                Stack<String> historialCambios = new Stack<>();
 
                 //crear "estado" e "historialCambios"
                 Paciente p = new Paciente(nombre, apellido, id, categoria, tiempoLlegada, estado, area, historialCambios);
@@ -227,7 +242,7 @@ class SimuladorUrgencia {                                   // crear clase
     }
 
     public void simular(int pacientesPorDia) {                                         //simula pacientes por dia 
-        long timestampInicio = Instant.now().getEpochSecond();
+        long timestampInicio = Instant.now().getEpochSecond(); //no sé cómo funciona esto, pero te da la hora desde 00:00?
         pacientesSimulados = GeneradorPacientes.generarPacientes(pacientesPorDia, timestampInicio);
         Queue<Paciente> colaLlegadas = new LinkedList<>(pacientesSimulados);
 
