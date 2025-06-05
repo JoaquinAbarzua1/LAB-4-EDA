@@ -45,13 +45,21 @@ class Paciente{
     public Stack<String> getHistorialCambios(){ return historialCambios; }
     //---------Setters----------- (de der necesarios)
 
+    public void setCategoria(int nuevaCategoria) { //setter de categoría que agrega el cambio al historial de Cambios
+        if (!historialCambios.empty()) {
+            historialCambios.push("Cambio categoria de C" + categoria + " a C" + nuevaCategoria); //quizás también haya que agregar la hora en que se hizo el cambio
+        }
+        else {historialCambios.push("Entra con categoría C"+nuevaCategoria);} //¿colocar hora de ingreso en el historial?
+        this.categoria = nuevaCategoria;
+    }
 
     //----------Metodos Obligatorios---------
     public long tiempoEsperaActual(){}
 
-    public void registrarCambio(String descripcion){}
+    public void registrarCambio(String descripcion){ historialCambios.push(descripcion); }
 
-    public String obtenerUltimoCambio(){}
+    public String obtenerUltimoCambio(){ return historialCambios.peek(); }
+
 
 
 }
@@ -69,9 +77,9 @@ class AreaAtencion {
 
     }
 
-    public void IngresarPaciente(Paciente P) {
-        if (!saturada())
-            pacientesHeap.add(P);
+    public void ingresarPaciente(Paciente P) {
+        if (!saturada()){
+            pacientesHeap.add(P);}
     }
 
     public boolean saturada() {
@@ -87,11 +95,8 @@ class AreaAtencion {
         List<Paciente> ordenados = new ArrayList<>();
         while (!Aux.isEmpty()) {
             ordenados.add(Aux.poll());
-            return ordenados;
-
         }
-
-
+        return ordenados;
     }
 }
 
@@ -118,13 +123,33 @@ class Hospital{
 
     //----------Metodos obligatorios----------
 
-    public void registrarPaciente(Paciente p) {}
+    public void registrarPaciente(Paciente p) {
+        colaAtencion.add(p);
+        pacientesTotales.put(p.getId(), p);
+    }
 
-    public void reasignarCategoria(String id, int nuevaCategoria){}
+    public void reasignarCategoria(String id, int nuevaCategoria){
+        pacientesTotales.get(id).setCategoria(nuevaCategoria); //en el set se agrega el cambio en el historial
+    }
 
-    public Paciente atenderSiguiente(){}
+    public Paciente atenderSiguiente(){
+        //¿el area corresponde al area que tiene el paciente? ¿o sea que debo conseguir su area, usarla como llave para
+        // conseguir el valor (objeto) AreaAtencion, para luego agregarlo a su fila pacientesHeap?
+    }
 
-    public List<Paciente> obtenerPacientesPorCategoria(int categoria){}
+    public List<Paciente> obtenerPacientesPorCategoria(int categoria){
+        PriorityQueue<Paciente> Aux = new PriorityQueue<>(colaAtencion);
+        List<Paciente> ordenados = new ArrayList<>();
+        while (!Aux.isEmpty()) {
+            if (Aux.peek().getCategoria() == categoria){
+                ordenados.add(Aux.poll());
+            }
+            else {
+                Aux.poll();
+            }
+        }
+        return ordenados;
+    }
 
     public AreaAtencion obtenerArea(String nombre){}
 
@@ -138,34 +163,37 @@ class Hospital{
         private static final String[] nombres = { "María", "Pedro", "Ana", "Luis", "Sofía","Rodrigo","Benjamin"} ;             //Datos fijos 
         private static final String[] apellidos = {"Vargas","Pérez","López","Soto","Torres","Muños"} ;
         private static final String[] areas = {"SAPU","infantil","urgencia_adulto"} ;
+        private static int generarCategoria(Random rand) {         //genera categorias al azar
+            int r = rand.nextInt(100) + 1;
+            if (r <= 10) return 1;       // C1
+            else if (r <= 25) return 2;  // C2
+            else if (r <= 43) return 3;  // C3
+            else if (r <= 70) return 4;  // C4
+            else return 5;               // C5
+        }
     
-    public static List<Paciente> generarPacientes(int N, long timestampInicio) {         // lista de pacientes 
+        public static List<Paciente> generarPacientes(int N, long timestampInicio) {         // lista de pacientes
             List<Paciente> lista = new ArrayList<>();
             Random rand = new Random();
-    
-            for (int i = 0; i < N; i++) {               //bucles para crear pacientes 
-                String nombre = nombres[rand.nextInt(nombres.length)];     //Nombre y apellidos al azar 
-                String apellido = apellidos[rand.nextInt(apellidos.length)];
-                String id = "ID" + (1000 + i);                           // ID de paciente 
-                int categoria = generarCategoria(rand);                      // categoria random
-                long tiempoLlegada = timestampInicio + i * 600;             // Simula llegada cada 10 mins 
-                String area = areas[rand.nextInt(areas.length)];                  //área al azar 
-    
-                Paciente p = new Paciente(nombre, apellido, id, categoria, tiempoLlegada, area);
-                lista.add(p);                                             //crea paciente y lo agrega a la lista
-            }
-            return lista;
-        }
-     private static int generarCategoria(Random rand) {         //genera categorias al azar 
-        int r = rand.nextInt(100) + 1;                           
-        if (r <= 10) return 1;       // C1
-        else if (r <= 25) return 2;  // C2
-        else if (r <= 43) return 3;  // C3
-        else if (r <= 70) return 4;  // C4
-        else return 5;               // C5
-    }
 
-    public static void guardarPacientesEnArchivo(List<Paciente> pacientes, String archivo) {                    //Recibe lista de paciente  y archivo 
+            for (int i = 0; i < N; i++) {               //bucles para crear pacientes
+                String nombre = nombres[rand.nextInt(nombres.length)];     //Nombre y apellidos al azar
+                String apellido = apellidos[rand.nextInt(apellidos.length)];
+                String id = "ID" + (1000 + i);                           // ID de paciente
+                int categoria = generarCategoria(rand);                      // categoria random
+                long tiempoLlegada = timestampInicio + i * 600;             // Simula llegada cada 10 mins
+                String area = areas[rand.nextInt(areas.length)];                  //área al azar
+
+                //crear "estado" e "historialCambios"
+                Paciente p = new Paciente(nombre, apellido, id, categoria, tiempoLlegada, estado, area, historialCambios);
+                lista.add(p);                                             //crea paciente y lo agrega a la lista
+                }
+                return lista;
+            }
+
+
+
+    public static void guardarPacientesEnArchivo(List<Paciente> pacientes, String archivo) {                    //Recibe lista de paciente  y archivo
         try (FileWriter writer = new FileWriter(archivo)) {                                           //Abre el archivo usando try-with-resources, lo que garantiza que se cerrará correctamente al final.
             for (Paciente p : pacientes) {
                 writer.write(p.getId() + "," + p.getNombre() + "," + p.getApellido() + "," + p.getCategoria()
