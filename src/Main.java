@@ -54,15 +54,22 @@ class Paciente{
     }
 
     //----------Metodos Obligatorios---------
-    public long tiempoEsperaActual(){}
+    public long tiempoEsperaActual() {
+        long tiempoActual = Instant.now().getEpochSecond(); // tiempo actual en segundos desde 1970
+        long diferenciaSegundos = tiempoActual - this.tiempoLlegada;
+        return diferenciaSegundos / 60; // convierte segundos a minutos
+    }
 
-    public void registrarCambio(String descripcion){ historialCambios.push(descripcion); }//creo que sirve más para cambios puntuales
+    public void registrarCambio(String descripcion){
+        historialCambios.push(descripcion); }//creo que sirve más para cambios puntuales
 
-    public String obtenerUltimoCambio(){ return historialCambios.peek(); }
+    public String obtenerUltimoCambio(){
+        return historialCambios.peek(); }
 
 
 
 }
+
 
 //-----------------------Clase AreaAtecion--------------------------
 class AreaAtencion {
@@ -108,17 +115,22 @@ class AreaAtencion {
 
 //-----------------------Clase Hospital-----------------------
 
-class Hospital{
+   class Hospital {
     private Map<String, Paciente> pacientesTotales;
     private PriorityQueue<Paciente> colaAtencion;
     private Map<String, AreaAtencion> areasAtencion;
     private List<Paciente> pacientesAtendidos;
 
-    public Hospital(Map<String, Paciente> pacientesTotales, PriorityQueue<Paciente> colaAtencion, Map<String, AreaAtencion> areasAtencion, List<Paciente> pacientesAtendidos){
-        this.pacientesTotales = pacientesTotales;
-        this.colaAtencion = colaAtencion;
-        this.areasAtencion = areasAtencion;
-        this.pacientesAtendidos = pacientesAtendidos;
+    public Hospital() {
+        this.pacientesTotales = new HashMap<>();
+        this.colaAtencion = new PriorityQueue<>(); // usa el compareTo de Paciente
+        this.areasAtencion = new HashMap<>();
+        this.pacientesAtendidos = new ArrayList<>();
+
+        // Inicializamos las áreas con capacidad
+        areasAtencion.put("SAPU", new AreaAtencion("SAPU", 10));
+        areasAtencion.put("infantil", new AreaAtencion("infantil", 5));
+        areasAtencion.put("urgencia_adulto", new AreaAtencion("urgencia_adulto", 7));
     }
 
     //----------Getters---------- (en caso de ser necesarios)
@@ -136,18 +148,26 @@ class Hospital{
         pacientesTotales.get(id).setCategoria(nuevaCategoria); //en el set se agrega el cambio en el historial
     }
 
-    public Paciente atenderSiguiente(){
-        if (areasAtencion.get(colaAtencion.peek().getArea()).saturada()){ //reviso si la cola de pacientes de esa area está saturada o no
-            //No cacho como funciona PQ, ¿si saco y devuelvo al mismo paciente, se agrega en orden?
-            //Si es que se agrega en orden asumo que estará al frente de la colaAtencion otra vez
-            //podría hacer otra cola para los pacientes que no puedan ser atendidos porque la cola del área está llena
-            //Entonces habría que hacer otro "if", en el que reviso primero la cola de los que no pudieron ser atendidos debido
-            //a que la cola de su area estaba llena, luego reviso colaAtencion
-            //O supongo que igual depende, habría que ver qué paciente tiene mayor prioridad, el que está en la colaAtencion,
-            //o el que está en la cola de los atrasados
-        }
-    }
+public Paciente atenderSiguiente() {
+    if (colaAtencion.isEmpty())
+        return null;
 
+    Paciente siguiente = colaAtencion.peek(); // no lo saco todavía
+    AreaAtencion area = areasAtencion.get(siguiente.getArea());
+
+    if (area != null && !area.saturada()) {
+        // Se puede atender
+        siguiente = colaAtencion.poll(); // ahora sí lo saco
+        siguiente.registrarCambio("Paciente atendido en área: " + siguiente.getArea());
+        area.ingresarPaciente(siguiente);
+        siguiente.registrarCambio("Estado cambiado a atendido");
+        pacientesAtendidos.add(siguiente); // historial
+        return siguiente;
+    } else {
+        // Área saturada, no se puede atender por ahora
+        return null;
+    }
+}
     public List<Paciente> obtenerPacientesPorCategoria(int categoria){
         PriorityQueue<Paciente> Aux = new PriorityQueue<>(colaAtencion);
         List<Paciente> ordenados = new ArrayList<>();
@@ -310,9 +330,22 @@ class SimuladorUrgencia {                                   // crear clase
 
 //-----------------------Clase Main-------------------------
 
-public class Main {
+ class Main {
     public static void main(String[] args) {
+        int cantidadPacientes = 200; // Cantidad q se puede cambiar 
 
+        // Crear instancia 
+        SimuladorUrgencia simulador = new SimuladorUrgencia();
 
+        // Ejecutar simulación
+        System.out.println("Iniciando simulación de urgencia hospitalaria con " + cantidadPacientes + " pacientes:");
+        simulador.simular(cantidadPacientes);
+
+        // Guardar los pacientes generados
+        long timestampInicio = Instant.now().getEpochSecond();
+        List<Paciente> pacientesGenerados = GeneradorPacientes.generarPacientes(cantidadPacientes, timestampInicio);
+        String archivoSalida = "Pacientes_24h.txt";
+        GeneradorPacientes.guardarPacientesEnArchivo(pacientesGenerados, archivoSalida);
+        System.out.println("Pacientes generados guardados en: " + archivoSalida);
     }
 }
