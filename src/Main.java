@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.io.FileWriter;
 import java.io.IOException;
 //-----------------------Clase Paciente-----------------------
-class Paciente{
+class Paciente implements Comparable<Paciente> {
     private String nombre;
     private String apellido;
     private String id;
@@ -34,44 +34,49 @@ class Paciente{
         this.area = area;
         this.historialCambios = historialCambios;
     }
-    //----------Getters-----------
+
     public String getNombre() { return nombre; }
     public String getApellido() { return apellido; }
     public String getId() { return id; }
-    public int getCategoria() { return categoria;}
-    public long getTiempoLlegada(){ return tiempoLlegada;}
+    public int getCategoria() { return categoria; }
+    public long getTiempoLlegada() { return tiempoLlegada; }
     public String getEstado() { return estado; }
     public String getArea() { return area; }
-    public Stack<String> getHistorialCambios(){ return historialCambios; }
-    //---------Setters----------- (de der necesarios)
+    public Stack<String> getHistorialCambios() { return historialCambios; }
 
-    public void setCategoria(int nuevaCategoria) { //setter de categoría que agrega el cambio al historial de Cambios
+    public void setCategoria(int nuevaCategoria) {
         if (!historialCambios.empty()) {
-            historialCambios.push("Cambio categoria de C" + categoria + " a C" + nuevaCategoria); //quizás también haya que agregar la hora en que se hizo el cambio
+            historialCambios.push("Cambio categoría de C" + categoria + " a C" + nuevaCategoria);
+        } else {
+            historialCambios.push("Entra con categoría C" + nuevaCategoria);
         }
-        else {historialCambios.push("Entra con categoría C"+nuevaCategoria);} //¿colocar hora de ingreso en el historial?
         this.categoria = nuevaCategoria;
     }
 
-    //----------Metodos Obligatorios---------
     public long tiempoEsperaActual() {
-        long tiempoActual = Instant.now().getEpochSecond(); // tiempo actual en segundos desde 1970
-        long diferenciaSegundos = tiempoActual - this.tiempoLlegada;
-        return diferenciaSegundos / 60; // convierte segundos a minutos
+        long tiempoActual = Instant.now().getEpochSecond();
+        return (tiempoActual - this.tiempoLlegada) / 60;
     }
 
-    public void registrarCambio(String descripcion){
-        historialCambios.push(descripcion); }//creo que sirve más para cambios puntuales
+    public void registrarCambio(String descripcion) {
+        historialCambios.push(descripcion);
+    }
 
-    public String obtenerUltimoCambio(){
-        return historialCambios.peek(); }
+    public String obtenerUltimoCambio() {
+        return historialCambios.peek();
+    }
 
-
-
+    @Override
+    public int compareTo(Paciente otro) {
+        if (this.categoria != otro.categoria) {
+            return Integer.compare(this.categoria, otro.categoria);
+        } else {
+            return Long.compare(this.tiempoLlegada, otro.tiempoLlegada);
+        }
+    }
 }
 
-
-//-----------------------Clase AreaAtecion--------------------------
+//-----------------------Clase AreaAtencion--------------------------
 class AreaAtencion {
     private String nombre;
     private PriorityQueue<Paciente> pacientesHeap;
@@ -81,13 +86,12 @@ class AreaAtencion {
         this.nombre = nombre;
         this.capacidadMaxima = capacidadMaxima;
         this.pacientesHeap = new PriorityQueue<>();
-
     }
 
     public void ingresarPaciente(Paciente P) {
-        if (!saturada()){
-            pacientesHeap.add(P);} //supongo que habría que cambiar el estado del paciente a "en_atencion" o algo
-            // y registrarlo en el historialCambios
+        if (!saturada()) {
+            pacientesHeap.add(P);
+        }
     }
 
     public boolean saturada() {
@@ -95,8 +99,7 @@ class AreaAtencion {
     }
 
     public Paciente atenderPaciente() {
-        return pacientesHeap.poll(); //supongo que habría que cambiar el estaddo del paciente a "atendido"
-        //y registrarlo en el historialCambios
+        return pacientesHeap.poll();
     }
 
     public List<Paciente> obtenerPacientePorHeapSort() {
@@ -109,13 +112,8 @@ class AreaAtencion {
     }
 }
 
-
-
-
-
 //-----------------------Clase Hospital-----------------------
-
-   class Hospital {
+class Hospital {
     private Map<String, Paciente> pacientesTotales;
     private PriorityQueue<Paciente> colaAtencion;
     private Map<String, AreaAtencion> areasAtencion;
@@ -123,146 +121,125 @@ class AreaAtencion {
 
     public Hospital() {
         this.pacientesTotales = new HashMap<>();
-        this.colaAtencion = new PriorityQueue<>(); // usa el compareTo de Paciente
+        this.colaAtencion = new PriorityQueue<>();
         this.areasAtencion = new HashMap<>();
         this.pacientesAtendidos = new ArrayList<>();
 
-        // Inicializamos las áreas con capacidad
         areasAtencion.put("SAPU", new AreaAtencion("SAPU", 10));
         areasAtencion.put("infantil", new AreaAtencion("infantil", 5));
         areasAtencion.put("urgencia_adulto", new AreaAtencion("urgencia_adulto", 7));
     }
 
-    //----------Getters---------- (en caso de ser necesarios)
-
-    //----------Metodos obligatorios----------
-
-    public void registrarPaciente(Paciente p) { //¿al registrar un paciente, debe quedar dentro de su historial?
-        //revisar, quizás el enunciado está mal escrito
-        //dice que hay que asignar su categoria y su area, pero se supone que ya venia con categoria y area.
+    public void registrarPaciente(Paciente p) {
         colaAtencion.add(p);
         pacientesTotales.put(p.getId(), p);
     }
 
-    public void reasignarCategoria(String id, int nuevaCategoria){
-        pacientesTotales.get(id).setCategoria(nuevaCategoria); //en el set se agrega el cambio en el historial
+    public void reasignarCategoria(String id, int nuevaCategoria) {
+        pacientesTotales.get(id).setCategoria(nuevaCategoria);
     }
 
-public Paciente atenderSiguiente() {
-    if (colaAtencion.isEmpty())
-        return null;
+    public Paciente atenderSiguiente() {
+        if (colaAtencion.isEmpty())
+            return null;
 
-    Paciente siguiente = colaAtencion.peek(); // no lo saco todavía
-    AreaAtencion area = areasAtencion.get(siguiente.getArea());
+        Paciente siguiente = colaAtencion.peek();
+        AreaAtencion area = areasAtencion.get(siguiente.getArea());
 
-    if (area != null && !area.saturada()) {
-        // Se puede atender
-        siguiente = colaAtencion.poll(); // ahora sí lo saco
-        siguiente.registrarCambio("Paciente atendido en área: " + siguiente.getArea());
-        area.ingresarPaciente(siguiente);
-        siguiente.registrarCambio("Estado cambiado a atendido");
-        pacientesAtendidos.add(siguiente); // historial
-        return siguiente;
-    } else {
-        // Área saturada, no se puede atender por ahora
-        return null;
+        if (area != null && !area.saturada()) {
+            siguiente = colaAtencion.poll();
+            siguiente.registrarCambio("Paciente atendido en área: " + siguiente.getArea());
+            area.ingresarPaciente(siguiente);
+            siguiente.registrarCambio("Estado cambiado a atendido");
+            pacientesAtendidos.add(siguiente);
+            return siguiente;
+        } else {
+            return null;
+        }
     }
-}
-    public List<Paciente> obtenerPacientesPorCategoria(int categoria){
+
+    public List<Paciente> obtenerPacientesPorCategoria(int categoria) {
         PriorityQueue<Paciente> Aux = new PriorityQueue<>(colaAtencion);
         List<Paciente> ordenados = new ArrayList<>();
         while (!Aux.isEmpty()) {
-            if (Aux.peek().getCategoria() == categoria){
-                ordenados.add(Aux.poll());
-            }
-            else {
-                Aux.poll();
+            Paciente p = Aux.poll();
+            if (p.getCategoria() == categoria) {
+                ordenados.add(p);
             }
         }
         return ordenados;
     }
 
-    public AreaAtencion obtenerArea(String nombre){
+    public AreaAtencion obtenerArea(String nombre) {
         return areasAtencion.get(nombre);
     }
-
-
 }
-
 
 //-----------------------Clase GeneradorPacientes------------------------
+class GeneradorPacientes {
+    private static final String[] nombres = {"María", "Pedro", "Ana", "Luis", "Sofía", "Rodrigo", "Benjamin"};
+    private static final String[] apellidos = {"Vargas", "Pérez", "López", "Soto", "Torres", "Muños"};
+    private static final String[] areas = {"SAPU", "infantil", "urgencia_adulto"};
 
-    class GeneradorPacientes{
-        private static final String[] nombres = { "María", "Pedro", "Ana", "Luis", "Sofía","Rodrigo","Benjamin"} ;             //Datos fijos 
-        private static final String[] apellidos = {"Vargas","Pérez","López","Soto","Torres","Muños"} ;
-        private static final String[] areas = {"SAPU","infantil","urgencia_adulto"} ;
-        private static int generarCategoria(Random rand) {         //genera categorias al azar
-            int r = rand.nextInt(100) + 1;
-            if (r <= 10) return 1;       // C1
-            else if (r <= 25) return 2;  // C2
-            else if (r <= 43) return 3;  // C3
-            else if (r <= 70) return 4;  // C4
-            else return 5;               // C5
+    private static int generarCategoria(Random rand) {
+        int r = rand.nextInt(100) + 1;
+        if (r <= 10) return 1;
+        else if (r <= 25) return 2;
+        else if (r <= 43) return 3;
+        else if (r <= 70) return 4;
+        else return 5;
+    }
+
+    public static List<Paciente> generarPacientes(int N, long timestampInicio) {
+        List<Paciente> lista = new ArrayList<>();
+        Random rand = new Random();
+
+        for (int i = 0; i < N; i++) {
+            String nombre = nombres[rand.nextInt(nombres.length)];
+            String apellido = apellidos[rand.nextInt(apellidos.length)];
+            String id = "ID" + (1000 + i);
+            int categoria = generarCategoria(rand);
+            long tiempoLlegada = timestampInicio + i * 600;
+            String estado = "en_espera";
+            String area = areas[rand.nextInt(areas.length)];
+            Stack<String> historialCambios = new Stack<>();
+
+            Paciente p = new Paciente(nombre, apellido, id, categoria, tiempoLlegada, estado, area, historialCambios);
+            lista.add(p);
         }
-    
-        public static List<Paciente> generarPacientes(int N, long timestampInicio) {         // lista de pacientes
-            List<Paciente> lista = new ArrayList<>();
-            Random rand = new Random();
+        return lista;
+    }
 
-            for (int i = 0; i < N; i++) {               //bucles para crear pacientes
-                String nombre = nombres[rand.nextInt(nombres.length)];     //Nombre y apellidos al azar
-                String apellido = apellidos[rand.nextInt(apellidos.length)];
-                String id = "ID" + (1000 + i);                           // ID de paciente
-                int categoria = generarCategoria(rand);                      // categoria random
-                long tiempoLlegada = timestampInicio + i * 600;             // Simula llegada cada 10 mins
-                String estado = "en_espera";
-                String area = areas[rand.nextInt(areas.length)];                  //área al azar
-                Stack<String> historialCambios = new Stack<>();
-
-                //crear "estado" e "historialCambios"
-                Paciente p = new Paciente(nombre, apellido, id, categoria, tiempoLlegada, estado, area, historialCambios);
-                lista.add(p);                                             //crea paciente y lo agrega a la lista
-                }
-                return lista;
-            }
-
-
-
-    public static void guardarPacientesEnArchivo(List<Paciente> pacientes, String archivo) {                    //Recibe lista de paciente  y archivo
-        try (FileWriter writer = new FileWriter(archivo)) {                                           //Abre el archivo usando try-with-resources, lo que garantiza que se cerrará correctamente al final.
+    public static void guardarPacientesEnArchivo(List<Paciente> pacientes, String archivo) {
+        try (FileWriter writer = new FileWriter(archivo)) {
             for (Paciente p : pacientes) {
                 writer.write(p.getId() + "," + p.getNombre() + "," + p.getApellido() + "," + p.getCategoria()
-                    + "," + p.getTiempoLlegada() + "," + p.getArea() + "," + p.getEstado() + "\n");
+                        + "," + p.getTiempoLlegada() + "," + p.getArea() + "," + p.getEstado() + "\n");
             }
         } catch (IOException e) {
-            e.printStackTrace();                               //Escribe cada paciente en una línea del archivo CSV.
-
+            e.printStackTrace();
         }
     }
-    
-
 }
 
-
 //-----------------------Clase SimuladorUrgencia------------------------
-
-class SimuladorUrgencia {                                   // crear clase 
+class SimuladorUrgencia {
     private Hospital hospital;
     private List<Paciente> pacientesSimulados;
     private int pacientesAtendidos;
     private Map<Integer, List<Long>> tiemposEsperaPorCategoria;
     private List<Paciente> pacientesFueraDeTiempo;
 
-    public SimuladorUrgencia() {                            // constructor 
-        this.hospital = new Hospital(); 
+    public SimuladorUrgencia() {
+        this.hospital = new Hospital();
         this.pacientesAtendidos = 0;
         this.tiemposEsperaPorCategoria = new HashMap<>();
         this.pacientesFueraDeTiempo = new ArrayList<>();
         for (int i = 1; i <= 5; i++) tiemposEsperaPorCategoria.put(i, new ArrayList<>());
     }
 
-    public void simular(int pacientesPorDia) {                                         //simula pacientes por dia 
-        long timestampInicio = Instant.now().getEpochSecond(); //no sé cómo funciona esto, pero te da la hora desde 00:00?
+    public void simular(int pacientesPorDia) {
+        long timestampInicio = Instant.now().getEpochSecond();
         pacientesSimulados = GeneradorPacientes.generarPacientes(pacientesPorDia, timestampInicio);
         Queue<Paciente> colaLlegadas = new LinkedList<>(pacientesSimulados);
 
@@ -285,7 +262,7 @@ class SimuladorUrgencia {                                   // crear clase
             minuto++;
         }
 
-        System.out.println(" SIMULACIÓN COMPLETA ");
+        System.out.println("SIMULACIÓN COMPLETA");
         mostrarResultados();
     }
 
@@ -302,19 +279,18 @@ class SimuladorUrgencia {                                   // crear clase
     }
 
     private boolean excedeTiempoMaximo(int categoria, long esperaMinutos) {
-        switch (categoria) {
-            case 1: return esperaMinutos > 0;
-            case 2: return esperaMinutos > 30;
-            case 3: return esperaMinutos > 90;
-            case 4: return esperaMinutos > 180;
-            case 5: return false;
-        }
-        return false;
+        return switch (categoria) {
+            case 1 -> esperaMinutos > 0;
+            case 2 -> esperaMinutos > 30;
+            case 3 -> esperaMinutos > 90;
+            case 4 -> esperaMinutos > 180;
+            case 5 -> false;
+            default -> false;
+        };
     }
 
     private void mostrarResultados() {
         System.out.println("Total pacientes atendidos: " + pacientesAtendidos);
-
         for (int cat = 1; cat <= 5; cat++) {
             List<Long> tiempos = tiemposEsperaPorCategoria.get(cat);
             double promedio = tiempos.isEmpty() ? 0 : tiempos.stream().mapToLong(Long::longValue).average().orElse(0);
@@ -329,19 +305,14 @@ class SimuladorUrgencia {                                   // crear clase
 }
 
 //-----------------------Clase Main-------------------------
-
- class Main {
+class Main {
     public static void main(String[] args) {
-        int cantidadPacientes = 200; // Cantidad q se puede cambiar 
+        int cantidadPacientes = 200;
 
-        // Crear instancia 
         SimuladorUrgencia simulador = new SimuladorUrgencia();
-
-        // Ejecutar simulación
         System.out.println("Iniciando simulación de urgencia hospitalaria con " + cantidadPacientes + " pacientes:");
         simulador.simular(cantidadPacientes);
 
-        // Guardar los pacientes generados
         long timestampInicio = Instant.now().getEpochSecond();
         List<Paciente> pacientesGenerados = GeneradorPacientes.generarPacientes(cantidadPacientes, timestampInicio);
         String archivoSalida = "Pacientes_24h.txt";
